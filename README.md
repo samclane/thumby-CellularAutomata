@@ -2,6 +2,10 @@
 
 Langston's ant simulation for the Thumby game console
 
+## Video
+
+![](emulator_video.mov)
+
 ## Running
 To run in your browser, use the Thumby emulator, and copy the code from `main.py` into the editor:
 
