@@ -6,7 +6,7 @@ import time
 # langston's ant for thumby
 # based on game of life for thumby
 
-simulate = True
+simulate = False
 
 buf = bytearray()
 cells = []
@@ -20,6 +20,16 @@ wc = 72//2 # 36 -> width in cells
 hc = 40//2 # 20 -> height in cells
 antx = wc//2
 anty = hc//2
+
+
+# BITMAP: width: 72, height: 40
+start_screen = bytearray([255,255,255,255,255,31,255,255,255,255,255,127,159,127,255,255,255,31,159,127,255,255,31,255,255,127,191,223,223,223,191,255,255,63,223,223,191,255,223,223,31,223,223,255,255,127,191,223,223,223,191,127,255,255,31,159,127,255,255,31,255,255,143,255,255,63,223,223,191,255,255,255,
+           255,255,255,255,255,224,239,239,239,231,249,250,251,250,249,231,255,224,255,254,249,231,224,255,255,248,247,239,237,237,241,255,255,247,238,237,243,255,255,255,224,255,255,255,255,248,247,239,239,239,247,248,255,255,224,255,254,249,231,224,255,255,255,255,255,247,238,237,243,255,255,255,
+           255,255,255,255,255,255,255,127,255,255,255,255,127,127,255,255,255,127,255,127,127,127,127,127,255,255,255,255,255,255,39,151,119,207,223,63,255,255,255,255,255,255,255,255,255,255,255,255,255,131,235,227,255,131,235,211,255,131,171,255,179,171,155,255,179,171,155,255,255,255,255,255,
+           255,255,255,255,159,231,233,238,233,231,159,255,128,254,249,231,159,128,255,255,255,128,255,255,255,255,255,255,255,255,252,253,251,51,207,62,254,30,252,62,126,126,125,131,255,255,255,255,207,175,111,255,239,239,15,239,15,79,63,255,255,15,175,79,239,239,15,239,239,255,255,255,
+           255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,254,253,254,254,253,254,254,253,252,255,255,255,255,255,255,255,254,254,254,255,255,255,254,254,255,255,254,255,255,254,255,255,255,255,254,255,255,255,255,255])
+cover_screen = thumby.Sprite(72, 40, start_screen, 0, 0, -1) # combining bitmaps as animation frames
+
 
 def BuildBuffer(): # converts game screen (cells) into a screen buffer
     global buf
@@ -43,6 +53,17 @@ def InitCells(): # initializes the cells array
     for row in range(hc):
         for col in range(wc):
             cells.append(0)
+
+def handleInput(): # called every frame
+    global cursor
+    global simulate
+    global cells
+
+    if thumby.buttonB.justPressed(): # toggles the simulate flag
+        if simulate:
+            simulate = False
+        else:
+            simulate = True
 
 
 def Timing(): # does some common timing and animation handling
@@ -104,14 +125,27 @@ old_ticks=0 # timer count on last frame
 blink_interval=600 # ~ms per blink
 next_blink = blink_interval # time until next blink in ms
 blinks = 0 # used for animating sprite
-thumby.display.setFPS(30) # who needs 60fps?!
+thumby.display.setFPS(0) # who needs 60fps?!
 InitCells()
+
+
+while 1:
+    thumby.display.fill(0)
+    cover_screen.setFrame(blinks) # animate the controls screen
+    thumby.display.drawSprite(cover_screen)
+    thumby.display.update()
+    handleInput()
+
+    if simulate:
+        break
 
 while 1: # simulation screen
     Timing()
     
     thumby.display.fill(0)
     fbuffer.blit(FrameBuffer(buf, 72, 40, MONO_HMSB), 0, 0, 72,40) # drawing game board
+
+    handleInput()
     
     if simulate: # hide cursor if simulating
         Simulate()
