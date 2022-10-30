@@ -3,7 +3,7 @@ import random
 from framebuf import FrameBuffer, MONO_HMSB, MONO_VLSB, MONO_HLSB
 import time
 
-# langston's ant for thumby
+# langton's ant for thumby
 # based on game of life for thumby
 
 simulate = False
@@ -28,7 +28,7 @@ start_screen = bytearray([255,255,255,255,255,31,255,255,255,255,255,127,159,127
            255,255,255,255,255,255,255,127,255,255,255,255,127,127,255,255,255,127,255,127,127,127,127,127,255,255,255,255,255,255,39,151,119,207,223,63,255,255,255,255,255,255,255,255,255,255,255,255,255,131,235,227,255,131,235,211,255,131,171,255,179,171,155,255,179,171,155,255,255,255,255,255,
            255,255,255,255,159,231,233,238,233,231,159,255,128,254,249,231,159,128,255,255,255,128,255,255,255,255,255,255,255,255,252,253,251,51,207,62,254,30,252,62,126,126,125,131,255,255,255,255,207,175,111,255,239,239,15,239,15,79,63,255,255,15,175,79,239,239,15,239,239,255,255,255,
            255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,254,253,254,254,253,254,254,253,252,255,255,255,255,255,255,255,254,254,254,255,255,255,254,254,255,255,254,255,255,254,255,255,255,255,254,255,255,255,255,255])
-cover_screen = thumby.Sprite(72, 40, start_screen, 0, 0, -1) # combining bitmaps as animation frames
+cover_screen = thumby.Sprite(72, 40, start_screen, 0, 0, -1)
 
 
 def BuildBuffer(): # converts game screen (cells) into a screen buffer
@@ -60,10 +60,15 @@ def handleInput(): # called every frame
     global cells
 
     if thumby.buttonB.justPressed(): # toggles the simulate flag
+        Beep()
         if simulate:
             simulate = False
         else:
             simulate = True
+
+
+def Beep(): # audio feedback for inputs!
+    thumby.audio.play(1000, 50)
 
 
 def Timing(): # does some common timing and animation handling
@@ -81,7 +86,7 @@ def Timing(): # does some common timing and animation handling
         next_blink = blink_interval
         blinks += 1
         
-def Simulate(): # simulates langstons ant
+def Simulate(): # simulates the ant
     global antx
     global anty
     global antd
@@ -129,7 +134,7 @@ thumby.display.setFPS(0) # who needs 60fps?!
 InitCells()
 
 
-while 1:
+while 1: # start screen loop
     thumby.display.fill(0)
     cover_screen.setFrame(blinks) # animate the controls screen
     thumby.display.drawSprite(cover_screen)
@@ -139,7 +144,7 @@ while 1:
     if simulate:
         break
 
-while 1: # simulation screen
+while 1: # simulation screen loop
     Timing()
     
     thumby.display.fill(0)
@@ -147,7 +152,7 @@ while 1: # simulation screen
 
     handleInput()
     
-    if simulate: # hide cursor if simulating
+    if simulate:
         Simulate()
     
     thumby.display.update() # flush the screenbuffer
