@@ -10,6 +10,7 @@ simulate = False
 buf = bytearray()
 cells = []
 blinks = 0
+rule = 30
 fbuffer = FrameBuffer(thumby.display.display.buffer, 72, 40, MONO_VLSB) # create thumby buffer
 old_ticks=0 # timer count on last frame
 blink_interval=600 # ~ms per blink
@@ -59,6 +60,13 @@ def GetCell(x, y):
     global cells
     return cells[y*wc+x]
 
+def CheckRule(x, y, i):
+    global rule
+    if (rule & (1 << i)) > 0:
+        SetCell(x, y)
+    else:
+        ClearCell(x, y)
+
 def SetPixel(x, y):
     global buf
     buf[y*wb+x//8] |= 1 << (x%8)
@@ -107,22 +115,8 @@ def Simulate():
                 l = GetCell(x-1, y-1)
                 c = GetCell(x, y-1)
                 r = GetCell(x+1, y-1)
-                if l == 1 and c == 1 and r == 1:
-                    ClearCell(x, y)
-                elif l == 1 and c == 1 and r == 0:
-                    ClearCell(x, y)
-                elif l == 1 and c == 0 and r == 1:
-                    ClearCell(x, y)
-                elif l == 1 and c == 0 and r == 0:
-                    SetCell(x, y)
-                elif l == 0 and c == 1 and r == 1:
-                    SetCell(x, y)
-                elif l == 0 and c == 1 and r == 0:
-                    SetCell(x, y)
-                elif l == 0 and c == 0 and r == 1:
-                    SetCell(x, y)
-                elif l == 0 and c == 0 and r == 0:
-                    ClearCell(x, y)
+                i = l*4 + c*2 + r
+                CheckRule(x, y, i)
 
         # draw next generation
         for y in range(0, hc):
