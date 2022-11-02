@@ -100,6 +100,14 @@ def Timing(): # does some common timing and animation handling
         next_blink = blink_interval
         blinks += 1
 
+def FlashCurrentRule(): # flashes the current rule on the screen
+    global rule
+
+    thumby.display.fill(0)
+    thumby.display.drawText(str(rule), 0, 0, 1)
+    thumby.display.update() # flush the screenbuffer
+    
+
 def Simulate():
     # simulate 1D cellular automata by Stephen Wolfram
     # http://mathworld.wolfram.com/ElementaryCellularAutomaton.html
@@ -178,9 +186,23 @@ def Draw():
 
 def HandleInput():
     global simulate
+    global rule
     if thumby.buttonA.justPressed():
         Beep()
         simulate = not simulate
+    if thumby.buttonU.justPressed():
+        Beep()
+        rule += 1
+        if rule > 255:
+            rule = 0
+        FlashCurrentRule()
+    if thumby.buttonD.justPressed():
+        Beep()
+        rule -= 1
+        if rule < 0:
+            rule = 255
+        FlashCurrentRule()
+        
 
 while 1:
     thumby.display.fill(0)
