@@ -7,6 +7,7 @@ import time
 # http://mathworld.wolfram.com/ElementaryCellularAutomaton.html
 
 simulate = False
+at_start_screen = True
 buf = bytearray()
 cells = []
 blinks = 0
@@ -21,6 +22,11 @@ hb = 360//wb # 40 -> pixel width in bytes
 
 wc = 72//2 # 36 -> width in cells
 hc = 40//2 # 20 -> height in cells
+
+cursor = bytearray([1, 1, 1, 1])
+cursor_sprite = thumby.Sprite(2, 2, cursor) # create a cursor sprite
+cursor_sprite.x = 0
+cursor_sprite.y = 0
 
 # BITMAP: width: 72, height: 40
 start_screen = bytearray([255,199,63,255,255,31,231,31,255,255,63,199,255,63,223,223,223,223,63,255,255,3,255,255,223,7,219,219,255,255,31,191,223,223,255,191,223,223,223,63,255,255,31,191,223,223,63,191,223,223,63,255,255,255,31,239,247,247,247,247,239,255,255,63,207,247,207,63,255,255,255,255,
@@ -75,12 +81,8 @@ def ClearPixel(x, y):
     global buf
     buf[y*wb+x//8] &= ~(1 << (x%8))
 
-def RandomizeFirstRow():
-    for i in range(0, wc):
-        if random.randint(0, 1) == 1:
-            SetCell(i, 0)
-        else:
-            ClearCell(i, 0)
+def InitFirstRow():
+    SetCell(wc//2, 0)
 
 def Beep(): # audio feedback for inputs!
     thumby.audio.play(1000, 50)
@@ -145,13 +147,6 @@ def Simulate():
             for x in range(0, wc):
                 cells[y*wc+x] = GetCell(x, y-1)
 
-        # randomize first row
-        for x in range(0, wc):
-            if random.randint(0, 1) == 1:
-                SetCell(x, 0)
-            else:
-                ClearCell(x, 0)
-
         # draw first row
         for x in range(0, wc):
             if GetCell(x, 0) == 1:
@@ -161,48 +156,68 @@ def Simulate():
                 ClearPixel(x*2, 0)
                 ClearPixel(x*2+1, 0)
 
-        # draw buffer
-        thumby.display.fill(0)
-        fbuffer.blit(FrameBuffer(buf, 72, 40, MONO_HMSB), 0, 0, 72,40) # drawing game board
-        thumby.display.update() # flush the screenbuffer
+
+        simulate = False
+    
+    thumby.display.fill(0)
+    fbuffer.blit(FrameBuffer(buf, 72, 40, MONO_HMSB), 0, 0, 72,40) # drawing game board
+    thumby.display.update() # flush the screenbuffer
+    Draw()
 
 def Draw():
     global buf
     global blinks
-    global simulate
-    global cursor_x
-    global cursor_y
     global cursor_sprite
 
-    # draw the cursor
-    if blinks % 2 == 0:
-        cursor_sprite.draw()
-    else:
-        cursor_sprite.erase()
     # draw the buffer
-    thumby.draw_buffer(buf)
-    thumby.update()
+    thumby.display.drawSprite(cursor_sprite)
+    thumby.display.update()
     Timing()
 
 def HandleInput():
     global simulate
     global rule
+    global at_start_screen
     if thumby.buttonA.justPressed():
         Beep()
-        simulate = not simulate
+        if at_start_screen:
+            at_start_screen = not at_start_screen
+        elif not at_start_screen:
+            SetCell(cursor_sprite.x//2, cursor_sprite.y//2)
+            simulate = True
     if thumby.buttonU.justPressed():
         Beep()
         rule += 1
         if rule > 255:
             rule = 0
         FlashCurrentRule()
+        BuildBuffer()
+        BuildCells()
+        InitFirstRow()
+        simulate = True
     if thumby.buttonD.justPressed():
         Beep()
         rule -= 1
         if rule < 0:
             rule = 255
         FlashCurrentRule()
+        BuildBuffer()
+        BuildCells()
+        InitFirstRow()
+        simulate = True
+    if thumby.buttonL.justPressed():
+        Beep()
+        if cursor_sprite.x > 0:
+            cursor_sprite.x -= 2
+    if thumby.buttonR.justPressed():
+        Beep()
+        if cursor_sprite.x < 71:
+            cursor_sprite.x += 2
         
+BuildBuffer()
+BuildCells()
+InitFirstRow()
+
 
 while 1:
     thumby.display.fill(0)
@@ -211,17 +226,15 @@ while 1:
     thumby.display.update()
     HandleInput()
 
-    if simulate:
+    if not at_start_screen:
         break
 
     thumby.display.update()
 
-BuildBuffer()
-BuildCells()
-RandomizeFirstRow()
+
+simulate = True
+at_start_screen = False
 
 while 1:
     Simulate()
     HandleInput()
-    if not simulate:
-        break
