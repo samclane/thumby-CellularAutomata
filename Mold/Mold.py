@@ -1,5 +1,6 @@
 import thumby 
 from framebuf import FrameBuffer, MONO_HMSB, MONO_VLSB, MONO_HLSB
+import utime
 
 # Simulate mold in a cellular automata
 simulate = False
@@ -29,6 +30,15 @@ start_screen = bytearray([255,255,255,255,255,255,255,255,255,255,255,255,127,12
            255,255,255,255,255,255,255,255,255,255,255,255,252,253,253,253,252,254,255,255,255,255,253,252,255,255,254,255,255,255,255,249,252,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255])
 cover_screen = thumby.Sprite(72, 40, start_screen, 0, 0, -1)
 
+def timed_function(f, *args, **kwargs):
+    myname = str(f).split(' ')[1]
+    def new_func(*args, **kwargs):
+        t = utime.ticks_us()
+        result = f(*args, **kwargs)
+        delta = utime.ticks_diff(utime.ticks_us(), t)
+        print('Function {} Time = {:6.3f}ms'.format(myname, delta/1000))
+        return result
+    return new_func
 
 def BuildBuffer(): # converts game screen (cells) into a screen buffer
     global buf
@@ -45,7 +55,6 @@ def BuildBuffer(): # converts game screen (cells) into a screen buffer
         else:
             buf.extend(buf[-wb:])
 
-
 def InitCells(): # initializes the cells array
     global cells
     cells = []
@@ -57,11 +66,17 @@ def SetCell(x, y, v): # sets a cell to a value
     global cells
     cells[y*wc+x] = v
 
+@micropython.native
 def GetCell(x, y): # gets a cell's value
     global cells
     return cells[y*wc+x]
 
+@timed_function
 def Convolve(filt): # convolves a 3x3 filter with the cells array
+    _Convolve(filt)
+
+@micropython.native
+def _Convolve(filt):
     global cells
     new_cells = []
     for row in range(hc):
@@ -69,8 +84,8 @@ def Convolve(filt): # convolves a 3x3 filter with the cells array
             v = 0
             for i in range(3):
                 for j in range(3):
-                    v += filt[i][j]*GetCell((col+j-1) % wc-1, (row+i-1) % hc-1)
-            new_cells.append(1 if v > 0 else 0)
+                    v |= filt[i][j] & GetCell((col+j-1) % wc-1, (row+i-1) % hc-1)
+            new_cells.append(v)
     cells = new_cells
 
 def Beep(): # audio feedback for inputs!
@@ -124,10 +139,11 @@ def Simulate():
     global cursor_sprite
 
     if simulate:
-        Convolve([[1,1,0],[1,0,1],[0,1,0]])
+        Convolve([[0,1,0],[1,0,1],[0,1,0]])
 
     BuildBuffer()
 
+thumby.display.setFPS(60)
 
 while 1: # start screen loop
     thumby.display.fill(0)
