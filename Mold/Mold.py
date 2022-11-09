@@ -9,6 +9,7 @@ buf = bytearray()
 cells = []
 blinks = 0
 fbuffer = FrameBuffer(thumby.display.display.buffer, 72, 40, MONO_VLSB) # create thumby buffer
+cfilt = [[0,1,0],[1,0,1],[0,1,0]]  # convolution filter for mold growth
 
 wb = 72//8 # 9 -> pixel width in bytes
 hb = 360//wb # 40 -> pixel width in bytes
@@ -21,6 +22,12 @@ cursor = bytearray([3,3])
 cursor_sprite = thumby.Sprite(2, 2, cursor) # create a cursor sprite
 cursor_sprite.x = 0
 cursor_sprite.y = 0
+
+# BITMAP: width: 8, height: 8
+fcursor = bytearray([126,189,219,231,231,219,189,126])
+fcursor_sprite = thumby.Sprite(8, 8, fcursor) # create a cursor sprite
+fcursor_sprite.x = 0
+fcursor_sprite.y = 0
 
 # BITMAP: width: 72, height: 40
 start_screen = bytearray([255,255,255,255,255,255,255,255,255,255,255,255,127,127,127,255,127,63,191,191,63,255,255,255,255,127,127,255,255,255,255,255,255,255,127,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
@@ -85,7 +92,7 @@ def _Convolve(filt):
             for i in range(3):
                 for j in range(3):
                     v |= filt[i][j] & GetCell((col+j-1) % wc-1, (row+i-1) % hc-1)
-            new_cells.append(v)
+            new_cells.append(1 if v > 0 else 0)
     cells = new_cells
 
 def Beep(): # audio feedback for inputs!
@@ -106,8 +113,10 @@ def HandleInput(): # called every frame
             simulate = not simulate
     if thumby.buttonA.justPressed():
         Beep()
-        if not at_start_screen:
+        if not at_start_screen and not simulate:
             SetCell(cursor_sprite.x//2, cursor_sprite.y//2, 1)
+        elif at_start_screen:
+            at_start_screen = False
     if thumby.buttonU.justPressed():
         Beep()
         cursor_sprite.y -= 2
@@ -137,14 +146,57 @@ def Simulate():
     global buf
     global blinks
     global cursor_sprite
+    global cfilt
 
     if simulate:
-        Convolve([[0,1,0],[1,0,1],[0,1,0]])
+        Convolve(cfilt)
 
     BuildBuffer()
 
+def EditFilterScreen():
+    # screen for editing the convolution filter
+    global cfilt
+    global fcursor_sprite
+    global blinks
+    global at_start_screen
+    global simulate
+
+    while 1:
+        thumby.display.fill(0)
+        thumby.display.drawSprite(fcursor_sprite)
+        # draw the filter
+        for i in range(3):
+            for j in range(3):
+                #  if filt is 1 AND cursor is not on it
+                if cfilt[i][j] and not (fcursor_sprite.x == j*8 and fcursor_sprite.y == i*8):
+                    thumby.display.drawFilledRectangle(j*8, i*8, 8, 8, 1)
+        # draw text
+        thumby.display.drawText("Edit Filter", 0, (j+1)*8, 1)
+        thumby.display.update()
+        if thumby.buttonU.justPressed():
+            Beep()
+            fcursor_sprite.y -= 8
+        if thumby.buttonD.justPressed():
+            Beep()
+            fcursor_sprite.y += 8
+        if thumby.buttonL.justPressed():
+            Beep()
+            fcursor_sprite.x -= 8
+        if thumby.buttonR.justPressed():
+            Beep()
+            fcursor_sprite.x += 8 
+        if thumby.buttonB.justPressed():
+            Beep()
+            # at_start_screen = True
+            break
+        if thumby.buttonA.justPressed():
+            Beep()
+            cfilt[fcursor_sprite.y//8][fcursor_sprite.x//8] = not cfilt[fcursor_sprite.y//8][fcursor_sprite.x//8]
+
+# Init
 thumby.display.setFPS(60)
 
+# Start Screen
 while 1: # start screen loop
     thumby.display.fill(0)
     cover_screen.setFrame(blinks) # animate the controls screen
@@ -155,8 +207,12 @@ while 1: # start screen loop
     if not at_start_screen:
         break
 
+EditFilterScreen()
+
+# Init Game
 InitCells()
 
+# Game Loop
 while 1:
     HandleInput()
     Simulate()
