@@ -78,7 +78,35 @@ class Sword(Weapon):
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
 
-class Wand(Weapon):
+
+class Projectile(Weapon): # abstract class
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.is_shooting = False
+
+    def attack(self, character):
+        if not self.is_shooting:
+            # move the projectile to the character
+            self.weaponSlash.x = character.char.x + character.char.width
+            self.weaponSlash.y = character.char.y
+            if self.weaponSlashOutline:
+                self.weaponSlashOutline.x = character.char.x + character.char.width
+                self.weaponSlashOutline.y = character.char.y
+            self.is_shooting = True
+
+    def draw(self, frame=0):
+        # draw the weapon slash, which is the projectile
+        super().draw(frame)
+        # move the projectile
+        if self.is_shooting:
+            self.weaponSlash.x += 1
+            if self.weaponSlashOutline:
+                self.weaponSlashOutline.x += 1
+            # check if the projectile is out of the screen
+            if self.weaponSlash.x > 72:
+                self.is_shooting = False
+
+class Wand(Projectile):
     # 12x7 for 2 frames
     boltFrames = bytearray([8,24,12,24,44,8,34,9,93,72,34,8,8,12,24,12,26,8,34,72,93,9,34,8])
 
@@ -107,7 +135,7 @@ class Char:
         self.y = y
         self.char = Sprite(8, 9, self.charFrames, 0, 0)
         self.charOutline = Sprite(8, 9, self.charOutlineFrames, 0, 0)
-        self.weapon = Knife(0, 0)
+        self.weapon = Wand(0, 0)
         self.explosion = Sprite(11, 7, self.explosionFrames, 0, 0)
 
     def draw(self, frame=0):
@@ -221,7 +249,7 @@ while 1: # game loop
     c.draw(frameCount)
     for z in zombies:
         z.draw()
-        z.move()
+        z.move(frameCount)
         z.checkCollision(c, frameCount)
         c.weapon.checkCollision(z, frameCount)
     display.update()
