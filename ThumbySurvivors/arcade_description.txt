@@ -1,0 +1,7 @@
+A Thumby port of the game Vampire Survivors.
+
+Sprites by Auri
+
+Press A to start
+
+Controls - TBD
