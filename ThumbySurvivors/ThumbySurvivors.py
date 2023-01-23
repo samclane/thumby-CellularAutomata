@@ -80,9 +80,10 @@ class Sword(Weapon):
 
 
 class Projectile(Weapon): # abstract class
-    def __init__(self, x, y):
+    def __init__(self, x, y, direction):
         super().__init__(x, y)
         self.is_shooting = False
+        self.direction = direction
 
     def attack(self, character):
         if not self.is_shooting:
@@ -99,11 +100,11 @@ class Projectile(Weapon): # abstract class
         super().draw(frame)
         # move the projectile
         if self.is_shooting:
-            self.weaponSlash.x += 1
+            self.weaponSlash.x += 1 * self.direction
             if self.weaponSlashOutline:
-                self.weaponSlashOutline.x += 1
+                self.weaponSlashOutline.x += 1 * self.direction
             # check if the projectile is out of the screen
-            if self.weaponSlash.x > 72:
+            if self.weaponSlash.x > 72 or self.weaponSlash.x < 0:
                 self.is_shooting = False
 
 class Wand(Projectile):
@@ -114,8 +115,8 @@ class Wand(Projectile):
     wandFrames = bytearray([0,22,22,88,14,32,72,128,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,8,0])
     # 13x13 for 1 frames
     wandOutlineFrames = bytearray([192,192,0,0,0,0,3,3,63,127,255,255,255,31,31,31,31,31,31,30,28,24,16,0,1,3])
-    def __init__(self, x, y):
-        super().__init__(x, y)
+    def __init__(self, x, y, direction):
+        super().__init__(x, y, direction)
         self.weapon = Sprite(13, 13, self.wandFrames, 0, 0)
         self.weaponOutline = Sprite(13, 13, self.wandOutlineFrames, 0, 0)
         self.weaponSlash = Sprite(12, 7, self.boltFrames, 0, 0)
@@ -135,10 +136,15 @@ class Char:
         self.y = y
         self.char = Sprite(8, 9, self.charFrames, 0, 0)
         self.charOutline = Sprite(8, 9, self.charOutlineFrames, 0, 0)
-        self.weapon = Wand(0, 0)
+        self.weapon = Wand(0, 0, 1)
         self.explosion = Sprite(11, 7, self.explosionFrames, 0, 0)
+        self.is_dead = False
+        self.is_facing_right = True
+        self.is_facing_up = False
 
     def draw(self, frame=0):
+        if self.is_dead:
+            return
         self.char.x = 72//2 - self.char.width//2
         self.char.y = 40//2 - self.char.height//2 
         self.charOutline.x = self.char.x
@@ -166,11 +172,17 @@ class Zombie:
         self.y = y
         self.zombie = Sprite(5, 8, self.zombieFrames, 0, 0)
         self.dieSprite = Sprite(5, 5, self.dieFrames, 0, 0)
+        self.is_dead = False
 
-    def draw(self):
-        self.zombie.x = self.x
-        self.zombie.y = self.y
-        display.drawSprite(self.zombie)
+    def draw(self, character):
+        self.zombie.x = self.x - character.x + 72//2 - self.zombie.width//2
+        self.zombie.y = self.y  - character.y + 40//2 - self.zombie.height//2
+        if self.is_dead:
+            self.dieSprite.x = self.x - character.x + 72//2 - self.dieSprite.width//2
+            self.dieSprite.y = self.y - character.y + 40//2 - self.dieSprite.height//2
+            display.drawSprite(self.dieSprite)
+        else:
+            display.drawSprite(self.zombie)
 
     def spawn(self):
         # pick a random side of the screen
@@ -190,32 +202,35 @@ class Zombie:
             self.x = random.randint(0, 72)
             self.y = 40
 
-    def move(self, frame=0):
-        # move towards the player in the center of the screen
+    def move(self, character, frame=0):
+        if self.is_dead:
+            return
         self.zombie.setFrame(frame // 10)
+        # move towards the player
         if random.randint(0, 100) < 10:
-            if self.x < 72//2:
+            if self.x < character.x:
                 self.x += 1
-            elif self.x > 72//2:
+            elif self.x > character.x:
                 self.x -= 1
-            if self.y < 40//2:
+            if self.y < character.y:
                 self.y += 1
-            elif self.y > 40//2:
+            elif self.y > character.y:
                 self.y -= 1
 
     def die(self, frame=0):
-        fc = frame // 120
-        self.dieSprite.setFrame(fc)
-        self.dieSprite.x = self.x
-        self.dieSprite.y = self.y
-        display.drawSprite(self.dieSprite)
-        if fc >= 2:
+        self.dieSprite.setFrame(frame // 10)
+        self.is_dead = True
+        if self.dieSprite.getFrame() == 1:
+            self.is_dead = False
             self.spawn()
 
     def checkCollision(self, character, frame=0):
+        if self.is_dead:
+            return
         global play
-        if self.x < character.char.x + character.char.width and self.x + self.zombie.width > character.char.x and self.y < character.char.y + character.char.height and self.y + self.zombie.height > character.char.y:
+        if self.x - character.x + 72//2 - self.zombie.width//2 < 72//2 - self.zombie.width//2 + self.zombie.width and self.x - character.x + 72//2 - self.zombie.width//2 + self.zombie.width > 72//2 - self.zombie.width//2 and self.y - character.y + 40//2 - self.zombie.height//2 < 40//2 - self.zombie.height//2 + self.zombie.height and self.y - character.y + 40//2 - self.zombie.height//2 + self.zombie.height > 40//2 - self.zombie.height//2:
             character.die(frame)
+            play = False
 
 
 def handleInput():
@@ -224,7 +239,18 @@ def handleInput():
         if thumby.buttonA.justPressed():
             play = True
     else:
-        pass # game logic
+        if thumby.buttonU.pressed():
+            c.y -= 1
+            c.is_facing_up = True
+        if thumby.buttonD.pressed():
+            c.y += 1
+            c.is_facing_up = False
+        if thumby.buttonL.pressed():
+            c.x -= 1
+            c.is_facing_right = False
+        if thumby.buttonR.pressed():
+            c.x += 1
+            c.is_facing_right = True
 
 while 1: # start screen loop
     display.fill(0)
@@ -248,8 +274,8 @@ while 1: # game loop
     handleInput()
     c.draw(frameCount)
     for z in zombies:
-        z.draw()
-        z.move(frameCount)
+        z.draw(c)
+        z.move(c, frameCount)
         z.checkCollision(c, frameCount)
         c.weapon.checkCollision(z, frameCount)
     display.update()
