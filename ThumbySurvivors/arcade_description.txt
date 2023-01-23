@@ -4,4 +4,5 @@ Sprites by Auri
 
 Press A to start
 
-Controls - TBD
+Controls - 
+Move with the D-Pad
