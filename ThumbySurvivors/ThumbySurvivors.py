@@ -13,14 +13,48 @@ cover_screen = Sprite(72, 40, titlescreenFrames, 0, 0, -1)
 play = False
 
 class Weapon: # abstract
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    def __init__(self, x, y, direction):
+        self._x = x
+        self._y = y
+        self._direction = direction
         self.weapon = None
         self.weaponOutline = None
         self.weaponSlash = None
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
+
+    @property
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, value):
+        self._x = value
+        self.weapon.x = value
+        self.weaponOutline.x = value
+    
+    @property
+    def y(self):
+        return self._y
+
+    @y.setter
+    def y(self, value):
+        self._y = value
+        self.weapon.y = value
+        self.weaponOutline.y = value
+
+    @property
+    def direction(self):
+        return self._direction
+    
+    @direction.setter
+    def direction(self, value):
+        if value != self._direction:
+            for sprite in self.sprites:
+                if sprite:
+                    sprite.mirrorX = not sprite.mirrorX
+        self._direction = value
+
     
     def draw(self, frame=0):
         # update frame
@@ -37,10 +71,10 @@ class Weapon: # abstract
 
     def attack(self, character):
         # move the slash to the character
-        self.weaponSlash.x = character.char.x + character.char.width
+        self.weaponSlash.x = character.char.x + (character.char.width * self.direction)
         self.weaponSlash.y = character.char.y
         if self.weaponSlashOutline:
-            self.weaponSlashOutline.x = character.char.x + character.char.width
+            self.weaponSlashOutline.x = character.char.x + (character.char.width * self.direction)
             self.weaponSlashOutline.y = character.char.y
     
     def checkCollision(self, zombie, frame=0):
@@ -56,11 +90,11 @@ class Knife(Weapon):
     knifeOutlineFrames = bytearray([224,192,128,1,3,7,15,31,31,255,255,255,31,31,31,31,28,28,28,24,16,0,1,3])
     # 8x14 for 2 frames
     knifeSlashFrames = bytearray([1,3,14,226,4,24,224,0,32,48,28,17,8,6,1,0,0,0,1,0,194,28,248,224,0,0,32,0,16,14,7,1])
-    def __init__(self, x, y):
-        super().__init__(x, y)
-        self.weapon = Sprite(12, 13, self.knifeFrames, 0, 0)
-        self.weaponOutline = Sprite(12, 13, self.knifeOutlineFrames, 0, 0)
-        self.weaponSlash = Sprite(8, 14, self.knifeSlashFrames, 0, 0)
+    def __init__(self, x, y, direction):
+        super().__init__(x, y, direction)
+        self.weapon = Sprite(12, 13, self.knifeFrames, x, y)
+        self.weaponOutline = Sprite(12, 13, self.knifeOutlineFrames, x, y)
+        self.weaponSlash = Sprite(8, 14, self.knifeSlashFrames, x, y)
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
 
@@ -70,42 +104,43 @@ class Sword(Weapon):
     gswordOutlineFrames = bytearray([224,192,128,0,0,1,3,7,15,31,63,127,127,127,255,255,255,255,255,255,255,254,252,248,192,192,192,224,192,128,4,15,31,63,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0])
     # 20x30 for 1 frames
     gswordSlashFrames = bytearray([1,1,3,7,7,14,30,54,126,236,204,24,56,48,96,192,128,0,0,0,0,0,0,0,0,0,0,0,0,0,3,15,254,240,0,0,3,15,254,240,0,0,0,0,0,0,0,0,128,192,240,60,31,3,128,192,112,60,31,3,32,32,48,56,56,28,30,27,31,13,12,6,7,3,1,0,0,0,0,0])
-    def __init__(self, x, y):
-        super().__init__(x, y)
-        self.weapon = Sprite(17, 17, self.gswordFrames, 0, 0)
-        self.weaponOutline =  Sprite(17, 17, self.gswordOutlineFrames, 0, 0)
-        self.weaponSlash = Sprite(20, 30, self.gswordSlashFrames, 0, 0)
+    def __init__(self, x, y, direction):
+        super().__init__(x, y, direction)
+        self.weapon = Sprite(17, 17, self.gswordFrames, x, y)
+        self.weaponOutline =  Sprite(17, 17, self.gswordOutlineFrames, x, y)
+        self.weaponSlash = Sprite(20, 30, self.gswordSlashFrames, x, y)
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
 
 
 class Projectile(Weapon): # abstract class
     def __init__(self, x, y, direction):
-        super().__init__(x, y)
-        self.is_shooting = False
-        self.direction = direction
+        super().__init__(x, y, direction)
+        self.shooting_direction = direction
+        self._direction = direction
 
     def attack(self, character):
-        if not self.is_shooting:
-            # move the projectile to the character
-            self.weaponSlash.x = character.char.x + character.char.width
+        if not self.shooting_direction:
+            # move the projectile to the weapon
+            self.weaponSlash.x = character.char.x + character.char.width * self.direction
             self.weaponSlash.y = character.char.y
             if self.weaponSlashOutline:
-                self.weaponSlashOutline.x = character.char.x + character.char.width
+                self.weaponSlashOutline.x = character.char.x + character.char.width * self.direction
                 self.weaponSlashOutline.y = character.char.y
-            self.is_shooting = True
+            self.shooting_direction = self._direction
 
     def draw(self, frame=0):
         # draw the weapon slash, which is the projectile
         super().draw(frame)
         # move the projectile
-        if self.is_shooting:
-            self.weaponSlash.x += 1 * self.direction
+        if self.shooting_direction != 0:
+            self.weaponSlash.x += 1 * self.shooting_direction
             if self.weaponSlashOutline:
-                self.weaponSlashOutline.x += 1 * self.direction
+                self.weaponSlashOutline.x += 1 * self.shooting_direction
             # check if the projectile is out of the screen
             if self.weaponSlash.x > 72 or self.weaponSlash.x < 0:
-                self.is_shooting = False
+                self.shooting_direction = 0
+            
 
 class Wand(Projectile):
     # 12x7 for 2 frames
@@ -117,9 +152,9 @@ class Wand(Projectile):
     wandOutlineFrames = bytearray([192,192,0,0,0,0,3,3,63,127,255,255,255,31,31,31,31,31,31,30,28,24,16,0,1,3])
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
-        self.weapon = Sprite(13, 13, self.wandFrames, 0, 0)
-        self.weaponOutline = Sprite(13, 13, self.wandOutlineFrames, 0, 0)
-        self.weaponSlash = Sprite(12, 7, self.boltFrames, 0, 0)
+        self.weapon = Sprite(13, 13, self.wandFrames, x, y)
+        self.weaponOutline = Sprite(13, 13, self.wandOutlineFrames, x, y)
+        self.weaponSlash = Sprite(12, 7, self.boltFrames, x, y, mirrorX=True)
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
 
@@ -136,11 +171,33 @@ class Char:
         self.y = y
         self.char = Sprite(8, 9, self.charFrames, 0, 0)
         self.charOutline = Sprite(8, 9, self.charOutlineFrames, 0, 0)
-        self.weapon = Wand(0, 0, 1)
+        self.weapon = Wand(72//2 - self.char.width*2, 40//2 - self.char.height, -1)
         self.explosion = Sprite(11, 7, self.explosionFrames, 0, 0)
         self.is_dead = False
-        self.is_facing_right = True
-        self.is_facing_up = False
+        self._is_facing_right = True
+        self._is_facing_up = False
+        self.fire_rate = 5
+
+    @property
+    def is_facing_right(self):
+        return self._is_facing_right
+
+    @is_facing_right.setter
+    def is_facing_right(self, value):
+        self._is_facing_right = value
+        self.weapon.direction = 1 if value else -1
+        self.weapon.x = 72//2 + self.char.width//2 if value else 72//2 - self.char.width*2
+    
+    @property
+    def is_facing_up(self):
+        return self._is_facing_up
+
+    @is_facing_up.setter
+    def is_facing_up(self, value):
+        self._is_facing_up = value
+        self.weapon.weaponSlash.mirrorY = value
+        if self.weapon.weaponSlashOutline:
+            self.weapon.weaponSlashOutline.mirrorY = value
 
     def draw(self, frame=0):
         if self.is_dead:
@@ -150,9 +207,10 @@ class Char:
         self.charOutline.x = self.char.x
         self.charOutline.y = self.char.y
         display.drawSprite(self.charOutline)
-        display.drawSprite(self.char)
-        self.weapon.attack(self)
         self.weapon.draw(frame)
+        if frame % self.fire_rate == 0:
+            self.weapon.attack(self)
+        display.drawSprite(self.char)
 
     def die(self, frame=0):
         self.explosion.x = self.char.x
@@ -173,6 +231,7 @@ class Zombie:
         self.zombie = Sprite(5, 8, self.zombieFrames, 0, 0)
         self.dieSprite = Sprite(5, 5, self.dieFrames, 0, 0)
         self.is_dead = False
+        self.despawn = False
 
     def draw(self, character):
         self.zombie.x = self.x - character.x + 72//2 - self.zombie.width//2
@@ -184,23 +243,18 @@ class Zombie:
         else:
             display.drawSprite(self.zombie)
 
-    def spawn(self):
-        # pick a random side of the screen
-        side = random.randint(0, 3)
-        self.x = 0
-        self.y = 0
-        if side == 0:
-            self.x = 0
-            self.y = random.randint(0, 40)
-        elif side == 1:
-            self.x = random.randint(0, 72)
-            self.y = 0
-        elif side == 2:
-            self.x = 72
-            self.y = random.randint(0, 40)
-        elif side == 3:
-            self.x = random.randint(0, 72)
-            self.y = 40
+    def spawn(self, character):
+        # spawn in a random location off screen with respect to the player
+        if random.randint(0, 1) == 0:
+            self.x = character.x + random.randint(0, 72)
+        else:
+            self.x = character.x - random.randint(0, 72)
+        if random.randint(0, 1) == 0:
+            self.y = character.y + random.randint(0, 40)
+        else:
+            self.y = character.y - random.randint(0, 40)
+        self.is_dead = False
+        self.despawn = False
 
     def move(self, character, frame=0):
         if self.is_dead:
@@ -221,8 +275,7 @@ class Zombie:
         self.dieSprite.setFrame(frame // 10)
         self.is_dead = True
         if self.dieSprite.getFrame() == 1:
-            self.is_dead = False
-            self.spawn()
+            self.despawn = True
 
     def checkCollision(self, character, frame=0):
         if self.is_dead:
@@ -265,7 +318,7 @@ c = Char(0, 0)
 zombies = []
 for i in range(0, 10):
     z = Zombie(0, 0)
-    z.spawn()
+    z.spawn(c)
     zombies.append(z)
 frameCount = 0
 
@@ -274,9 +327,12 @@ while 1: # game loop
     handleInput()
     c.draw(frameCount)
     for z in zombies:
-        z.draw(c)
-        z.move(c, frameCount)
-        z.checkCollision(c, frameCount)
-        c.weapon.checkCollision(z, frameCount)
+        if z.despawn:
+            z.spawn(c)
+        else:
+            z.draw(c)
+            z.move(c, frameCount)
+            z.checkCollision(c, frameCount)
+            c.weapon.checkCollision(z, frameCount)
     display.update()
     frameCount += 1
