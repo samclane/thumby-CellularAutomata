@@ -1,6 +1,8 @@
 import random
+import time
 from thumby import Sprite, display
 import thumby
+import math
 
 # BITMAP: width: 144, height: 80
 titlescreenFrames = bytearray([255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,247,247,7,247,247,255,7,223,223,31,255,255,31,255,255,31,255,255,31,223,223,31,223,223,31,255,255,7,223,223,63,255,159,127,255,63,223,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
@@ -185,7 +187,7 @@ class Char:
         self._is_facing_right = True
         self._is_facing_up = False
         self.fire_rate = 5
-        self.score = 0
+        self._score = 0
 
     @property
     def is_facing_right(self):
@@ -206,6 +208,20 @@ class Char:
         self.weapon.weaponSlash.mirrorY = value
         if self.weapon.weaponSlashOutline:
             self.weapon.weaponSlashOutline.mirrorY = value
+
+    @property
+    def score(self):
+        return self._score
+
+    @score.setter
+    def score(self, value):
+        if self.level_function(self._score) < self.level_function(value):
+            toast_level_up()
+        self._score = value
+
+    def level_function(self, score):
+        # [0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+        return math.floor(math.sqrt(score))
 
     def draw(self, frame=0):
         if self.is_dead:
@@ -307,6 +323,14 @@ class Zombie:
             character.die(frame)
             play = False
 
+def toast_level_up():
+    global play
+    display.fill(0)
+    display.drawText("Level Up!", 72//2 - 20, 40//2 - 4, 1)
+    display.update()
+    play = False
+    time.sleep(1)
+    play = True
 
 def handleInput():
     global play
@@ -359,7 +383,7 @@ while 1: # game loop
             if not z.is_dead and c.weapon.checkCollision(z, frameCount):
                 c.score += 1
                 print(c.score)
-    if c.score % 10 == 0 and c.score != 0:
+    if c.score % 10 == 0 and c.score != 0 and len(zombies) < 20:
         z = Zombie(0, 0)
         z.spawn(c)
         zombies.append(z)
