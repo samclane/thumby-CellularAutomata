@@ -9,7 +9,12 @@ titlescreenFrames = bytearray([255,255,255,255,255,255,255,255,255,255,255,255,2
            255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,31,223,223,63,255,255,127,127,127,255,255,127,127,255,255,127,127,127,255,255,127,127,127,255,255,255,255,255,255,31,159,127,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
            255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,240,254,254,255,255,255,240,255,255,255,248,245,245,244,255,246,245,241,255,255,246,245,241,255,255,255,255,247,248,253,253,252,243,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255])
 cover_screen = Sprite(72, 40, titlescreenFrames, 0, 0, -1)
-
+gameOverFrames = bytearray([255,255,255,255,255,255,255,255,255,255,255,127,127,127,127,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,15,35,131,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+           255,255,255,255,255,255,255,255,255,255,255,254,56,0,124,248,241,193,7,63,249,249,246,226,232,233,201,223,223,241,244,230,238,236,245,243,199,223,135,177,61,96,89,17,128,4,63,63,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+           255,255,255,255,255,255,255,255,255,255,255,255,255,250,250,250,250,250,250,251,251,251,251,251,251,251,251,251,251,251,251,251,251,251,251,243,247,247,247,247,247,247,247,247,247,247,247,247,247,247,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+           255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
+           255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255])
+game_over_screen = Sprite(72, 40, gameOverFrames, 0, 0, -1)
 play = False
 
 class Weapon: # abstract
@@ -82,6 +87,8 @@ class Weapon: # abstract
         if self.weaponSlash.x + self.weaponSlash.width > zombie.zombie.x and self.weaponSlash.x < zombie.zombie.x + zombie.zombie.width:
             if self.weaponSlash.y + self.weaponSlash.height > zombie.zombie.y and self.weaponSlash.y < zombie.zombie.y + zombie.zombie.height:
                 zombie.die(frame)
+                return True
+        return False
 
 class Knife(Weapon):
     # 12x13 for 1 frames
@@ -169,14 +176,16 @@ class Char:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.char = Sprite(8, 9, self.charFrames, 0, 0)
-        self.charOutline = Sprite(8, 9, self.charOutlineFrames, 0, 0)
-        self.weapon = Wand(72//2 - self.char.width*2, 40//2 - self.char.height, -1)
+        self.char = Sprite(8, 9, self.charFrames, 0, 0, key=0)
+        self.charOutline = Sprite(8, 9, self.charOutlineFrames, 0, 0, key=1)
+        self.weapon = Wand(72//2 - self.char.width//2 - 3, 40//2 - self.char.height//2 - 4, -1)
         self.explosion = Sprite(11, 7, self.explosionFrames, 0, 0)
         self.is_dead = False
+        self.destroyed = False
         self._is_facing_right = True
         self._is_facing_up = False
         self.fire_rate = 5
+        self.score = 0
 
     @property
     def is_facing_right(self):
@@ -186,7 +195,6 @@ class Char:
     def is_facing_right(self, value):
         self._is_facing_right = value
         self.weapon.direction = 1 if value else -1
-        self.weapon.x = 72//2 + self.char.width//2 if value else 72//2 - self.char.width*2
     
     @property
     def is_facing_up(self):
@@ -206,17 +214,26 @@ class Char:
         self.char.y = 40//2 - self.char.height//2 
         self.charOutline.x = self.char.x
         self.charOutline.y = self.char.y
-        display.drawSprite(self.charOutline)
         self.weapon.draw(frame)
+        display.drawSprite(self.charOutline)
         if frame % self.fire_rate == 0:
             self.weapon.attack(self)
         display.drawSprite(self.char)
 
     def die(self, frame=0):
+        self.is_dead = True
         self.explosion.x = self.char.x
         self.explosion.y = self.char.y
-        self.explosion.setFrame(frame // 10)
+        self.explosion.setFrame(frame // 65)
         display.drawSprite(self.explosion)
+        display.update()
+        if self.explosion.getFrame() >= 3:
+            self.destroyed = True
+
+    def game_over(self):
+        if self.is_dead and self.destroyed:
+            return True
+        return False
 
 
 class Zombie:
@@ -233,10 +250,13 @@ class Zombie:
         self.is_dead = False
         self.despawn = False
 
-    def draw(self, character):
+    def draw(self, frame, character):
         self.zombie.x = self.x - character.x + 72//2 - self.zombie.width//2
         self.zombie.y = self.y  - character.y + 40//2 - self.zombie.height//2
         if self.is_dead:
+            self.dieSprite.setFrame(frame // 10)
+            if self.dieSprite.getFrame() >= 1:
+                self.despawn = True
             self.dieSprite.x = self.x - character.x + 72//2 - self.dieSprite.width//2
             self.dieSprite.y = self.y - character.y + 40//2 - self.dieSprite.height//2
             display.drawSprite(self.dieSprite)
@@ -245,14 +265,16 @@ class Zombie:
 
     def spawn(self, character):
         # spawn in a random location off screen with respect to the player
-        if random.randint(0, 1) == 0:
-            self.x = character.x + random.randint(0, 72)
-        else:
-            self.x = character.x - random.randint(0, 72)
-        if random.randint(0, 1) == 0:
-            self.y = character.y + random.randint(0, 40)
-        else:
-            self.y = character.y - random.randint(0, 40)
+        # don't spawn too close to the player
+        self.x = random.randint(-100, 100)
+        self.y = random.randint(-100, 100)
+        while abs(self.x - character.x) < 20 and abs(self.y - character.y) < 20:
+            self.x = random.randint(-100, 100)
+            self.y = random.randint(-100, 100)
+
+        self.x += character.x
+        self.y += character.y
+
         self.is_dead = False
         self.despawn = False
 
@@ -274,7 +296,7 @@ class Zombie:
     def die(self, frame=0):
         self.dieSprite.setFrame(frame // 10)
         self.is_dead = True
-        if self.dieSprite.getFrame() == 1:
+        if self.dieSprite.getFrame() >= 1:
             self.despawn = True
 
     def checkCollision(self, character, frame=0):
@@ -316,7 +338,8 @@ while 1: # start screen loop
 
 c = Char(0, 0)
 zombies = []
-for i in range(0, 10):
+initial_zombies = 10
+for i in range(0, initial_zombies):
     z = Zombie(0, 0)
     z.spawn(c)
     zombies.append(z)
@@ -330,9 +353,26 @@ while 1: # game loop
         if z.despawn:
             z.spawn(c)
         else:
-            z.draw(c)
+            z.draw(frameCount, c)
             z.move(c, frameCount)
             z.checkCollision(c, frameCount)
-            c.weapon.checkCollision(z, frameCount)
+            if not z.is_dead and c.weapon.checkCollision(z, frameCount):
+                c.score += 1
+                print(c.score)
+    if c.score % 10 == 0 and c.score != 0:
+        z = Zombie(0, 0)
+        z.spawn(c)
+        zombies.append(z)
+        c.score += 1  # prevent infinite loop of spawning zombies
+    difficulty = len(zombies)
+    if difficulty == 0:
+        raise Exception("No zombies left")
+    if c.game_over():
+        break
     display.update()
     frameCount += 1
+
+while 1: # game over loop
+    display.fill(0)
+    display.drawSprite(game_over_screen)
+    display.update()
