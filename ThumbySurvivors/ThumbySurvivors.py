@@ -298,10 +298,6 @@ class Zombie:
         while abs(self.x - character.x) < 20 and abs(self.y - character.y) < 20:
             self.x = random.randint(-100, 100)
             self.y = random.randint(-100, 100)
-
-        self.x += character.x
-        self.y += character.y
-
         self.is_dead = False
         self.despawn = False
 
@@ -381,7 +377,7 @@ weapons = [
 # move each weapon to the left by 1/2 the width of their sprite
 for w in weapons:
     w.x -= w.weapon.width//2
-c = Char(0, 0)
+c = Char(72//2, 40//2)
 
 display.fill(0)
 
