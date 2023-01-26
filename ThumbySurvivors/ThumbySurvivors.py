@@ -19,6 +19,17 @@ gameOverFrames = bytearray([255,255,255,255,255,255,255,255,255,255,255,127,127,
 game_over_screen = Sprite(72, 40, gameOverFrames, 0, 0, -1)
 play = False
 
+class GameplayException(Exception):
+    # on raise, stop game and display error message on screen
+
+    def __init__(self, message):
+        global play
+        self.message = message
+        play = False
+        display.fill(0)
+        display.drawText(self.message, 0, 0, 1)
+        display.update()
+
 class Weapon: # abstract
     def __init__(self, x, y, direction):
         self._x = x
@@ -68,8 +79,6 @@ class Weapon: # abstract
         for sprite in self.sprites:
             if sprite:
                 sprite.setFrame(frame // 10)
-        # draw the icon
-        display.drawSprite(self.weaponOutline)
         display.drawSprite(self.weapon)
         # draw the slash
         if self.weaponSlashOutline:
@@ -86,10 +95,14 @@ class Weapon: # abstract
     
     def checkCollision(self, zombie, frame=0):
         # check if the slash is colliding with the zombie
-        if self.weaponSlash.x + self.weaponSlash.width > zombie.zombie.x and self.weaponSlash.x < zombie.zombie.x + zombie.zombie.width:
-            if self.weaponSlash.y + self.weaponSlash.height > zombie.zombie.y and self.weaponSlash.y < zombie.zombie.y + zombie.zombie.height:
-                zombie.die(frame)
-                return True
+        if (
+            self.weaponSlash.x + self.weaponSlash.width > zombie.zombie.x
+            and self.weaponSlash.x < zombie.zombie.x + zombie.zombie.width
+            and self.weaponSlash.y + self.weaponSlash.height > zombie.zombie.y
+            and self.weaponSlash.y < zombie.zombie.y + zombie.zombie.height
+        ):
+            zombie.die(frame)
+            return True
         return False
 
 class Knife(Weapon):
@@ -101,8 +114,8 @@ class Knife(Weapon):
     knifeSlashFrames = bytearray([1,3,14,226,4,24,224,0,32,48,28,17,8,6,1,0,0,0,1,0,194,28,248,224,0,0,32,0,16,14,7,1])
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
-        self.weapon = Sprite(12, 13, self.knifeFrames, x, y)
-        self.weaponOutline = Sprite(12, 13, self.knifeOutlineFrames, x, y)
+        self.weapon = Sprite(12, 13, self.knifeFrames, x, y, key=0)
+        self.weaponOutline = Sprite(12, 13, self.knifeOutlineFrames, x, y, key=0)
         self.weaponSlash = Sprite(8, 14, self.knifeSlashFrames, x, y)
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
@@ -115,8 +128,8 @@ class Sword(Weapon):
     gswordSlashFrames = bytearray([1,1,3,7,7,14,30,54,126,236,204,24,56,48,96,192,128,0,0,0,0,0,0,0,0,0,0,0,0,0,3,15,254,240,0,0,3,15,254,240,0,0,0,0,0,0,0,0,128,192,240,60,31,3,128,192,112,60,31,3,32,32,48,56,56,28,30,27,31,13,12,6,7,3,1,0,0,0,0,0])
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
-        self.weapon = Sprite(17, 17, self.gswordFrames, x, y)
-        self.weaponOutline =  Sprite(17, 17, self.gswordOutlineFrames, x, y)
+        self.weapon = Sprite(17, 17, self.gswordFrames, x, y, key=0)
+        self.weaponOutline =  Sprite(17, 17, self.gswordOutlineFrames, x, y, key=0)
         self.weaponSlash = Sprite(20, 30, self.gswordSlashFrames, x, y)
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
@@ -161,9 +174,9 @@ class Wand(Projectile):
     wandOutlineFrames = bytearray([192,192,0,0,0,0,3,3,63,127,255,255,255,31,31,31,31,31,31,30,28,24,16,0,1,3])
     def __init__(self, x, y, direction):
         super().__init__(x, y, direction)
-        self.weapon = Sprite(13, 13, self.wandFrames, x, y)
-        self.weaponOutline = Sprite(13, 13, self.wandOutlineFrames, x, y)
-        self.weaponSlash = Sprite(12, 7, self.boltFrames, x, y, mirrorX=True)
+        self.weapon = Sprite(13, 13, self.wandFrames, x, y, key=0)
+        self.weaponOutline = Sprite(13, 13, self.wandOutlineFrames, x, y, key=0)
+        self.weaponSlash = Sprite(12, 7, self.boltFrames, x, y, mirrorX=False)
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
 
@@ -180,7 +193,7 @@ class Char:
         self.y = y
         self.char = Sprite(8, 9, self.charFrames, 0, 0, key=0)
         self.charOutline = Sprite(8, 9, self.charOutlineFrames, 0, 0, key=1)
-        self.weapon = Wand(72//2 - self.char.width//2 - 3, 40//2 - self.char.height//2 - 4, -1)
+        self.weapon = None #  Wand(72//2 - self.char.width//2 - 3, 40//2 - self.char.height//2 - 4, -1)
         self.explosion = Sprite(11, 7, self.explosionFrames, 0, 0)
         self.is_dead = False
         self.destroyed = False
@@ -247,9 +260,7 @@ class Char:
             self.destroyed = True
 
     def game_over(self):
-        if self.is_dead and self.destroyed:
-            return True
-        return False
+        return bool(self.is_dead and self.destroyed)
 
 
 class Zombie:
@@ -360,10 +371,49 @@ while 1: # start screen loop
     if play:
         break
 
+# prepare for weapon select screen
+weapons = [
+    Knife(72//2 - 20,  40//2 - 4, 1),
+    Sword(72//2 - 0,  40//2 - 4, 1),
+    Wand(72//2  +  20, 40//2 - 4, 1),
+]
+# this is the dirtiest laziest code I've ever written
+# move each weapon to the left by 1/2 the width of their sprite
+for w in weapons:
+    w.x -= w.weapon.width//2
 c = Char(0, 0)
+
+display.fill(0)
+
+cursor = 0
+while 1: # weapon select
+    display.fill(0)
+    display.drawText("Select a", 0, 0, 1)
+    display.drawText("weapon", 0, 8, 1)
+    # draw the weapons
+    for w in weapons:
+        display.drawSprite(w.weapon)
+    # draw the cursor
+    display.drawSprite(weapons[cursor].weaponOutline)
+    display.update()
+    if thumby.buttonL.justPressed():
+        cursor -= 1
+        if cursor < 0:
+            cursor = len(weapons) - 1
+    if thumby.buttonR.justPressed():
+        cursor += 1
+        if cursor >= len(weapons):
+            cursor = 0
+    if thumby.buttonA.justPressed():
+        c.weapon = weapons[cursor]
+        c.weapon.x = 72//2 - weapons[cursor].weapon.width//2
+        c.weapon.y = 40//2 - weapons[cursor].weapon.height//2
+        break
+
+# prepare for game
 zombies = []
 initial_zombies = 10
-for i in range(0, initial_zombies):
+for _ in range(initial_zombies):
     z = Zombie(0, 0)
     z.spawn(c)
     zombies.append(z)
@@ -382,7 +432,6 @@ while 1: # game loop
             z.checkCollision(c, frameCount)
             if not z.is_dead and c.weapon.checkCollision(z, frameCount):
                 c.score += 1
-                print(c.score)
     if c.score % 10 == 0 and c.score != 0 and len(zombies) < 20:
         z = Zombie(0, 0)
         z.spawn(c)
@@ -390,7 +439,7 @@ while 1: # game loop
         c.score += 1  # prevent infinite loop of spawning zombies
     difficulty = len(zombies)
     if difficulty == 0:
-        raise Exception("No zombies left")
+        raise GameplayException("No zombies left")
     if c.game_over():
         break
     display.update()
