@@ -4,6 +4,9 @@ Cellular Automatas for the Thumby game console
 
 - Langton's Ant
 - Wolfram 1D Cellular Automata
+- Mold (Playing with 2D convolution) (WIP)
+- Gumby (GUI) (WIP)
+- Thumby Survivors (Video game I'm working on. Will probably be a separate repo) (WIP)
 
 ## Video
 [emulator_video.webm](https://user-images.githubusercontent.com/5761099/198299861-81015d05-bb2c-41ac-be9e-6071e5ca78f2.webm)
@@ -13,7 +16,7 @@ Cellular Automatas for the Thumby game console
 
 
 ## Running
-To run in your browser, use the Thumby emulator, and copy the code from `thumby-langston.py` into the editor:
+To run in your browser, use the Thumby emulator, and copy the code from `FOLDERNAME.py` into the editor:
 
 https://code.thumby.us/
 
