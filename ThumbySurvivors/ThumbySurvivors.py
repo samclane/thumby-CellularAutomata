@@ -234,7 +234,7 @@ class Char:
 
     def level_function(self, score):
         # [0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
-        return math.floor(math.sqrt(score))
+        return math.floor(math.sqrt(score)) + 1
 
     def draw(self, frame=0):
         if self.is_dead:
@@ -371,7 +371,7 @@ while 1: # start screen loop
 weapons = [
     Knife(72//2 - 20,  40//2 - 4, 1),
     Sword(72//2 - 0,  40//2 - 4, 1),
-    Wand(72//2  +  20, 40//2 - 4, 1),
+    Wand(72//2  + 20, 40//2 - 4, 1),
 ]
 # this is the dirtiest laziest code I've ever written
 # move each weapon to the left by 1/2 the width of their sprite
