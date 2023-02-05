@@ -1,6 +1,6 @@
 import random
 import time
-from thumby import Sprite, display
+from thumby import Sprite, display  # type: ignore
 import thumby
 import math
 
@@ -18,11 +18,12 @@ gameOverFrames = bytearray([255,255,255,255,255,255,255,255,255,255,255,127,127,
            255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255])
 game_over_screen = Sprite(72, 40, gameOverFrames, 0, 0, -1)
 play = False
+MAX_ZOMBIES = 20
 
 class GameplayException(Exception):
     # on raise, stop game and display error message on screen
 
-    def __init__(self, message):
+    def __init__(self, message: str):
         global play
         self.message = message
         play = False
@@ -31,22 +32,23 @@ class GameplayException(Exception):
         display.update()
 
 class Weapon: # abstract
-    def __init__(self, x, y, direction):
+    def __init__(self, x: int, y: int, direction: int):
         self._x = x
         self._y = y
         self._direction = direction
-        self.weapon = None
-        self.weaponOutline = None
-        self.weaponSlash = None
-        self.weaponSlashOutline = None
-        self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
+
+        self.weapon = Sprite(8, 8, bytearray(64), 0, 0, 0)
+        self.weaponOutline = Sprite(8, 8, bytearray(64), 0, 0, 0)
+        self.weaponSlash = Sprite(8, 8, bytearray(64), 0, 0, 0)
+        self.weaponSlashOutline = Sprite(8, 8, bytearray(64), 0, 0, 0)
+        self.sprites: list[Sprite] = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
 
     @property
-    def x(self):
+    def x(self) -> int:
         return self._x
 
     @x.setter
-    def x(self, value):
+    def x(self, value: int):
         self._x = value
         self.weapon.x = value
         self.weaponOutline.x = value
@@ -56,7 +58,7 @@ class Weapon: # abstract
         return self._y
 
     @y.setter
-    def y(self, value):
+    def y(self, value: int):
         self._y = value
         self.weapon.y = value
         self.weaponOutline.y = value
@@ -66,15 +68,17 @@ class Weapon: # abstract
         return self._direction
     
     @direction.setter
-    def direction(self, value):
+    def direction(self, value: int):
+        if value == 0:
+            raise GameplayException("CODE 0: Direction cannot be 0")
         if value != self._direction:
             for sprite in self.sprites:
                 if sprite:
                     sprite.mirrorX = not sprite.mirrorX
-        self._direction = value
+        self._direction = -1 if value < 0 else 1
 
     
-    def draw(self, frame=0):
+    def draw(self, frame: int = 0):
         # update frame
         for sprite in self.sprites:
             if sprite:
@@ -85,7 +89,7 @@ class Weapon: # abstract
             display.drawSprite(self.weaponSlashOutline)
         display.drawSprite(self.weaponSlash)
 
-    def attack(self, character):
+    def attack(self, character: "Char"):
         # move the slash to the character
         self.weaponSlash.x = character.char.x + (character.char.width * self.direction)
         self.weaponSlash.y = character.char.y
@@ -93,7 +97,7 @@ class Weapon: # abstract
             self.weaponSlashOutline.x = character.char.x + (character.char.width * self.direction)
             self.weaponSlashOutline.y = character.char.y
     
-    def checkCollision(self, zombie, frame=0):
+    def checkCollision(self, zombie: "Zombie", frame: int = 0):
         # check if the slash is colliding with the zombie
         if (
             self.weaponSlash.x + self.weaponSlash.width > zombie.zombie.x
@@ -112,7 +116,7 @@ class Knife(Weapon):
     knifeOutlineFrames = bytearray([224,192,128,1,3,7,15,31,31,255,255,255,31,31,31,31,28,28,28,24,16,0,1,3])
     # 8x14 for 2 frames
     knifeSlashFrames = bytearray([1,3,14,226,4,24,224,0,32,48,28,17,8,6,1,0,0,0,1,0,194,28,248,224,0,0,32,0,16,14,7,1])
-    def __init__(self, x, y, direction):
+    def __init__(self, x: int, y: int, direction: int):
         super().__init__(x, y, direction)
         self.weapon = Sprite(12, 13, self.knifeFrames, x, y, key=0)
         self.weaponOutline = Sprite(12, 13, self.knifeOutlineFrames, x, y, key=0)
@@ -126,7 +130,7 @@ class Sword(Weapon):
     gswordOutlineFrames = bytearray([224,192,128,0,0,1,3,7,15,31,63,127,127,127,255,255,255,255,255,255,255,254,252,248,192,192,192,224,192,128,4,15,31,63,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0])
     # 20x30 for 1 frames
     gswordSlashFrames = bytearray([1,1,3,7,7,14,30,54,126,236,204,24,56,48,96,192,128,0,0,0,0,0,0,0,0,0,0,0,0,0,3,15,254,240,0,0,3,15,254,240,0,0,0,0,0,0,0,0,128,192,240,60,31,3,128,192,112,60,31,3,32,32,48,56,56,28,30,27,31,13,12,6,7,3,1,0,0,0,0,0])
-    def __init__(self, x, y, direction):
+    def __init__(self, x: int, y: int, direction: int):
         super().__init__(x, y, direction)
         self.weapon = Sprite(17, 17, self.gswordFrames, x, y, key=0)
         self.weaponOutline =  Sprite(17, 17, self.gswordOutlineFrames, x, y, key=0)
@@ -136,7 +140,7 @@ class Sword(Weapon):
 
 
 class Projectile(Weapon): # abstract class
-    def __init__(self, x, y, direction):
+    def __init__(self, x: int, y: int, direction: int):
         super().__init__(x, y, direction)
         self.shooting_direction = direction
         self._direction = direction
@@ -172,7 +176,7 @@ class Wand(Projectile):
     wandFrames = bytearray([0,22,22,88,14,32,72,128,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,4,8,0])
     # 13x13 for 1 frames
     wandOutlineFrames = bytearray([192,192,0,0,0,0,3,3,63,127,255,255,255,31,31,31,31,31,31,30,28,24,16,0,1,3])
-    def __init__(self, x, y, direction):
+    def __init__(self, x: int, y: int, direction: int):
         super().__init__(x, y, direction)
         self.weapon = Sprite(13, 13, self.wandFrames, x, y, key=0)
         self.weaponOutline = Sprite(13, 13, self.wandOutlineFrames, x, y, key=0)
@@ -188,12 +192,13 @@ class Char:
     # 11x7 for 4 frames
     explosionFrames = bytearray([8,34,0,65,0,0,0,65,0,34,8,28,54,34,65,65,65,65,65,34,54,28,8,42,20,93,42,20,42,93,20,42,8,0,0,0,0,20,8,20,0,0,0,0])
 
-    def __init__(self, x, y):
+    def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
+
         self.char = Sprite(8, 9, self.charFrames, 0, 0, key=0)
         self.charOutline = Sprite(8, 9, self.charOutlineFrames, 0, 0, key=1)
-        self.weapon = None #  Wand(72//2 - self.char.width//2 - 3, 40//2 - self.char.height//2 - 4, -1)
+        self.weapon: Weapon = Wand(72//2 - self.char.width//2 - 3, 40//2 - self.char.height//2 - 4, -1)
         self.explosion = Sprite(11, 7, self.explosionFrames, 0, 0)
         self.is_dead = False
         self.destroyed = False
@@ -203,40 +208,40 @@ class Char:
         self._score = 0
 
     @property
-    def is_facing_right(self):
+    def is_facing_right(self) -> bool:
         return self._is_facing_right
 
     @is_facing_right.setter
-    def is_facing_right(self, value):
+    def is_facing_right(self, value: bool):
         self._is_facing_right = value
         self.weapon.direction = 1 if value else -1
     
     @property
-    def is_facing_up(self):
+    def is_facing_up(self) -> bool:
         return self._is_facing_up
 
     @is_facing_up.setter
-    def is_facing_up(self, value):
+    def is_facing_up(self, value: bool):
         self._is_facing_up = value
         self.weapon.weaponSlash.mirrorY = value
         if self.weapon.weaponSlashOutline:
             self.weapon.weaponSlashOutline.mirrorY = value
 
     @property
-    def score(self):
+    def score(self) -> int:
         return self._score
 
     @score.setter
-    def score(self, value):
+    def score(self, value: int):
         if self.level_function(self._score) < self.level_function(value):
             toast_level_up()
         self._score = value
 
-    def level_function(self, score):
-        # [0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+    def level_function(self, score: int) -> int:
+        # [1, 5, 10, 17, 26, 37, 50, 65, 82, ...]
         return math.floor(math.sqrt(score)) + 1
 
-    def draw(self, frame=0):
+    def draw(self, frame: int = 0):
         if self.is_dead:
             return
         self.char.x = 72//2 - self.char.width//2
@@ -249,7 +254,7 @@ class Char:
             self.weapon.attack(self)
         display.drawSprite(self.char)
 
-    def die(self, frame=0):
+    def die(self, frame: int = 0):
         self.is_dead = True
         self.explosion.x = self.char.x
         self.explosion.y = self.char.y
@@ -259,7 +264,7 @@ class Char:
         if self.explosion.getFrame() >= 3:
             self.destroyed = True
 
-    def game_over(self):
+    def game_over(self) -> bool:
         return bool(self.is_dead and self.destroyed)
 
 
@@ -269,7 +274,7 @@ class Zombie:
     # 5x5 for 2 frames
     dieFrames = bytearray([0,4,14,4,0,4,10,17,10,4])
 
-    def __init__(self, x, y):
+    def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
         self.zombie = Sprite(5, 8, self.zombieFrames, 0, 0)
@@ -277,7 +282,7 @@ class Zombie:
         self.is_dead = False
         self.despawn = False
 
-    def draw(self, frame, character):
+    def draw(self, frame: int, character: Char):
         self.zombie.x = self.x - character.x + 72//2 - self.zombie.width//2
         self.zombie.y = self.y  - character.y + 40//2 - self.zombie.height//2
         if self.is_dead:
@@ -290,7 +295,7 @@ class Zombie:
         else:
             display.drawSprite(self.zombie)
 
-    def spawn(self, character):
+    def spawn(self, character: Char):
         # spawn in a random location off screen with respect to the player
         # don't spawn too close to the player
         self.x = random.randint(-100, 100)
@@ -301,7 +306,7 @@ class Zombie:
         self.is_dead = False
         self.despawn = False
 
-    def move(self, character, frame=0):
+    def move(self, character: Char, frame: int = 0):
         if self.is_dead:
             return
         self.zombie.setFrame(frame // 10)
@@ -316,13 +321,13 @@ class Zombie:
             elif self.y > character.y:
                 self.y -= 1
 
-    def die(self, frame=0):
+    def die(self, frame:int = 0):
         self.dieSprite.setFrame(frame // 10)
         self.is_dead = True
         if self.dieSprite.getFrame() >= 1:
             self.despawn = True
 
-    def checkCollision(self, character, frame=0):
+    def checkCollision(self, character: Char, frame: int = 0):
         if self.is_dead:
             return
         global play
@@ -342,19 +347,19 @@ def toast_level_up():
 def handleInput():
     global play
     if not play:
-        if thumby.buttonA.justPressed():
+        if thumby.buttonA.justPressed():  # type: ignore
             play = True
     else:
-        if thumby.buttonU.pressed():
+        if thumby.buttonU.pressed():  # type: ignore
             c.y -= 1
             c.is_facing_up = True
-        if thumby.buttonD.pressed():
+        if thumby.buttonD.pressed():  # type: ignore
             c.y += 1
             c.is_facing_up = False
-        if thumby.buttonL.pressed():
+        if thumby.buttonL.pressed():  # type: ignore
             c.x -= 1
             c.is_facing_right = False
-        if thumby.buttonR.pressed():
+        if thumby.buttonR.pressed():  # type: ignore
             c.x += 1
             c.is_facing_right = True
 
@@ -368,7 +373,7 @@ while 1: # start screen loop
         break
 
 # prepare for weapon select screen
-weapons = [
+weapons: list[Weapon] = [
     Knife(72//2 - 20,  40//2 - 4, 1),
     Sword(72//2 - 0,  40//2 - 4, 1),
     Wand(72//2  + 20, 40//2 - 4, 1),
@@ -392,22 +397,22 @@ while 1: # weapon select
     # draw the cursor
     display.drawSprite(weapons[cursor].weaponOutline)
     display.update()
-    if thumby.buttonL.justPressed():
+    if thumby.buttonL.justPressed():  # type: ignore
         cursor -= 1
         if cursor < 0:
             cursor = len(weapons) - 1
-    if thumby.buttonR.justPressed():
+    if thumby.buttonR.justPressed():  # type: ignore
         cursor += 1
         if cursor >= len(weapons):
             cursor = 0
-    if thumby.buttonA.justPressed():
+    if thumby.buttonA.justPressed():  # type: ignore
         c.weapon = weapons[cursor]
         c.weapon.x = 72//2 - weapons[cursor].weapon.width//2
         c.weapon.y = 40//2 - weapons[cursor].weapon.height//2
         break
 
 # prepare for game
-zombies = []
+zombies: list[Zombie] = []
 initial_zombies = 10
 for _ in range(initial_zombies):
     z = Zombie(0, 0)
@@ -428,12 +433,12 @@ while 1: # game loop
             z.checkCollision(c, frameCount)
             if not z.is_dead and c.weapon.checkCollision(z, frameCount):
                 c.score += 1
-    if c.score % 10 == 0 and c.score != 0 and len(zombies) < 20:
+    if c.score % 10 == 0 and c.score != 0 and len(zombies) < MAX_ZOMBIES:
         z = Zombie(0, 0)
         z.spawn(c)
         zombies.append(z)
         c.score += 1  # prevent infinite loop of spawning zombies
-    difficulty = len(zombies)
+    difficulty: int = len(zombies)
     if difficulty == 0:
         raise GameplayException("No zombies left")
     if c.game_over():
