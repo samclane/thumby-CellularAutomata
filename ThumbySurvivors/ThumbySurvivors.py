@@ -138,6 +138,13 @@ class Sword(Weapon):
         self.weaponSlashOutline = None
         self.sprites = [self.weapon, self.weaponOutline, self.weaponSlash, self.weaponSlashOutline]
 
+    def attack(self, character: "Char"):
+        # move the slash to the character
+        self.weaponSlash.x = character.char.x + (character.char.width * (self.direction - 1))
+        self.weaponSlash.y = character.char.y - 5
+        if self.weaponSlashOutline:
+            self.weaponSlashOutline.x = character.char.x + (character.char.width * self.direction)
+            self.weaponSlashOutline.y = character.char.y
 
 class Projectile(Weapon): # abstract class
     def __init__(self, x: int, y: int, direction: int):
