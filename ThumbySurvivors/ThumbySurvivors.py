@@ -342,6 +342,43 @@ class Zombie:
             character.die(frame)
             play = False
 
+class Grass:
+    # 2x2 for 1 frame
+    grass_frames = bytearray([3,3])
+    grass = Sprite(2, 2, grass_frames, 0, 0)
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def draw(self, character: Char):
+        self.grass.x = self.x - character.x + 72//2 - self.grass.width//2
+        self.grass.y = self.y - character.y + 40//2 - self.grass.height//2
+        display.drawSprite(self.grass)
+
+LAWN_LENGTH = 4
+
+def build_lawn() -> list[Grass]:
+    lawn = []
+    for i in range(0, 72, 2):
+        for j in range(0, 40, 2):
+            if random.randint(0, 100) < 1:
+                lawn.append(Grass(i, j))
+            if len(lawn) >= LAWN_LENGTH:
+                return lawn
+    return lawn
+
+def trim_lawn(lawn: list[Grass], char: Char):
+    # remove grass off screen
+    for grass in lawn:
+        if grass.x < char.x - 72//2 or grass.x > char.x + 72//2 or grass.y < char.y - 40//2 or grass.y > char.y + 40//2:
+            lawn.remove(grass)
+
+def grow_lawn(lawn: list[Grass], char: Char):
+    # grow grass in a random location around the character
+    while len(lawn) < LAWN_LENGTH:
+        if random.randint(0, 100) < 1:
+            lawn.append(Grass(char.x + random.randint(-72//2, 72//2), char.y + random.randint(-40//2, 40//2)))
+
 def toast_level_up():
     global play
     display.fill(0)
@@ -427,10 +464,15 @@ for _ in range(initial_zombies):
     zombies.append(z)
 frameCount = 0
 
+lawn = build_lawn()
+
 while 1: # game loop
     display.fill(0)
     handleInput()
     c.draw(frameCount)
+    trim_lawn(lawn, c)
+    for g in lawn:
+        g.draw(c)
     for z in zombies:
         if z.despawn:
             z.spawn(c)
@@ -450,6 +492,7 @@ while 1: # game loop
         raise GameplayException("No zombies left")
     if c.game_over():
         break
+    grow_lawn(lawn, c)
     display.update()
     frameCount += 1
 
