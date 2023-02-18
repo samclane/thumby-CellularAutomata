@@ -349,35 +349,56 @@ class Grass:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.on = True
 
     def draw(self, character: Char):
-        self.grass.x = self.x - character.x + 72//2 - self.grass.width//2
-        self.grass.y = self.y - character.y + 40//2 - self.grass.height//2
-        display.drawSprite(self.grass)
+        if self.on:
+            self.grass.x = self.x - character.x + 72//2 - self.grass.width//2
+            self.grass.y = self.y - character.y + 40//2 - self.grass.height//2
+            display.drawSprite(self.grass)
+    
+class Lawn:
+    def __init__(self, length: int):
+        self.length: int = length
+        self.grasses: list[Grass] = []
+        self.grass_frames: bytearray = bytearray([3, 3])
+        self.grass_sprite: Sprite = Sprite(2, 2, self.grass_frames, 0, 0)
 
-LAWN_LENGTH = 4
+    def build(self):
+        for i in range(0, 72, 2):
+            for j in range(0, 40, 2):
+                if random.randint(0, 100) < 1 and len(self.grasses) < self.length:
+                    self.grasses.append(Grass(i, j))
 
-def build_lawn() -> list[Grass]:
-    lawn = []
-    for i in range(0, 72, 2):
-        for j in range(0, 40, 2):
+    def trim(self, character: Char):
+        # remove grass off screen
+        for grass in self.grasses:
+            if grass.on and grass.x < character.x - 72//2 or grass.x > character.x + 72//2 or \
+               grass.y < character.y - 40//2 or grass.y > character.y + 40//2:
+                grass.on = False
+            elif not grass.on and grass.x > character.x - 72//2 and grass.x < character.x + 72//2 and \
+                grass.y > character.y - 40//2 and grass.y < character.y + 40//2:
+                grass.on = True
+
+    def grow(self, character: Char):
+        # grow grass in a random location around the character
+        while len([g for g in self.grasses if g.on]) < self.length:
             if random.randint(0, 100) < 1:
-                lawn.append(Grass(i, j))
-            if len(lawn) >= LAWN_LENGTH:
-                return lawn
-    return lawn
+                # grow grass in a random location in the newly moved screen
+                dx = character.is_facing_right
+                dy = character.is_facing_up
+                # if the character is facing right, grow grass to the right
+                # if the character is facing left, grow grass to the left
+                # if the character is facing up, grow grass up
+                # if the character is facing down, grow grass down
+                self.grasses.append(Grass(character.x + random.randint(-72//2, 72//2) + dx * 72//2, character.y + random.randint(-40//2, 40//2) + dy * 40//2))
 
-def trim_lawn(lawn: list[Grass], char: Char):
-    # remove grass off screen
-    for grass in lawn:
-        if grass.x < char.x - 72//2 or grass.x > char.x + 72//2 or grass.y < char.y - 40//2 or grass.y > char.y + 40//2:
-            lawn.remove(grass)
 
-def grow_lawn(lawn: list[Grass], char: Char):
-    # grow grass in a random location around the character
-    while len(lawn) < LAWN_LENGTH:
-        if random.randint(0, 100) < 1:
-            lawn.append(Grass(char.x + random.randint(-72//2, 72//2), char.y + random.randint(-40//2, 40//2)))
+
+    def draw(self, character: Char):
+        for grass in self.grasses:
+            grass.draw(character)
+
 
 def toast_level_up():
     global play
@@ -464,15 +485,15 @@ for _ in range(initial_zombies):
     zombies.append(z)
 frameCount = 0
 
-lawn = build_lawn()
+lawn = Lawn(1)
+lawn.build()
 
 while 1: # game loop
     display.fill(0)
     handleInput()
     c.draw(frameCount)
-    trim_lawn(lawn, c)
-    for g in lawn:
-        g.draw(c)
+    lawn.trim(c)
+    lawn.draw(c)
     for z in zombies:
         if z.despawn:
             z.spawn(c)
@@ -492,7 +513,7 @@ while 1: # game loop
         raise GameplayException("No zombies left")
     if c.game_over():
         break
-    grow_lawn(lawn, c)
+    lawn.grow(c)
     display.update()
     frameCount += 1
 
