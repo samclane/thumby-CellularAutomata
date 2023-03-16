@@ -22,35 +22,44 @@ class Vector2D:
         self.x = x
         self.y = y
 
+    @micropython.viper
     def __add__(self, other):
         return Vector2D(self.x + other.x, self.y + other.y)
     
+    @micropython.viper
     def __sub__(self, other):
         return Vector2D(self.x - other.x, self.y - other.y)
     
+    @micropython.viper
     def __mul__(self, other):
         if isinstance(other, Vector2D):
             return self.x * other.x + self.y * other.y
         else:
             return Vector2D(self.x * other, self.y * other)
     
+    @micropython.viper
     def dot(self, other):
         return self.x * other.x + self.y * other.y
     
+    @micropython.viper
     def length(self):
         return math.sqrt(self.x * self.x + self.y * self.y)
     
+    @micropython.viper
     def normalize(self):
         length = self.length()
         self.x /= length
         self.y /= length
 
+    @micropython.viper
     def sign(self, other):
         return self.x * other.y - self.y * other.x
     
+    @micropython.viper
     def min(self, other):
         return Vector2D(min(self.x, other.x), min(self.y, other.y))
     
+    @micropython.viper
     def max(self, other):
         return Vector2D(max(self.x, other.x), max(self.y, other.y))
     
@@ -109,77 +118,99 @@ class State:
 
 s = State()
 
+@micropython.native
+def calculate_camera_ray(x):
+    xcam = 2 * x / SCREEN_WIDTH - 1
+    dir = Vector2D(
+        s.dir.x + s.plane.x * xcam,
+        s.dir.y + s.plane.y * xcam
+    )
+    return dir
+
+@micropython.native
+def calculate_delta_dist(dir):
+    delta_dist = Vector2D(
+        1e30 if abs(dir.x) < 1e-20 else abs(1 / dir.x),
+        1e30 if abs(dir.y) < 1e-20 else abs(1 / dir.y)
+    )
+    return delta_dist
+
+@micropython.native
+def calculate_side_dist(pos, ipos, dir, delta_dist):
+    side_dist = Vector2D(
+        delta_dist.x * ((pos.x - ipos.x) if dir.x < 0 else (ipos.x + 1 - pos.x)),
+        delta_dist.y * ((pos.y - ipos.y) if dir.y < 0 else (ipos.y + 1 - pos.y))
+    )
+    return side_dist
+
+@micropython.native
+def calculate_step(dir):
+    step = Vector2D(
+        -1 if dir.x < 0 else 1,
+        -1 if dir.y < 0 else 1
+    )
+    return step
+
+@micropython.native
+def perform_dda(hit, side_dist, delta_dist, ipos, step):
+    while (hit.val == 0):
+        if side_dist.x < side_dist.y:
+            side_dist.x += delta_dist.x
+            ipos.x += step.x
+            hit.side = 0
+        else:
+            side_dist.y += delta_dist.y
+            ipos.y += step.y
+            hit.side = 1
+
+        hit.val = map_data[ipos.x + ipos.y * MAP_SIZE]
+    return hit, side_dist
+
+@micropython.native
+def calculate_color(hit):
+    if hit.val == 0:
+        color = 0
+    elif hit.val == 1:
+        color = 1
+    elif hit.val == 2:
+        color = 2
+    else: 
+        color = 3
+
+    if hit.side == 1:
+        color = min(color + 1, 3)
+    return color
+
+@micropython.native
+def draw_columns(x, color, dperp):
+    h = int(SCREEN_HEIGHT / dperp)
+    y0 = max((SCREEN_HEIGHT / 2) - (h / 2), 0)
+    y1 = min((SCREEN_HEIGHT / 2) + (h / 2), SCREEN_HEIGHT - 1)
+
+    y0, y1 = int(y0), int(y1)
+    s.vertical_line(x, 0, y0, 0)
+    s.vertical_line(x, y0, y1, color)
+    s.vertical_line(x, y1, SCREEN_HEIGHT - 1, 0)
+
+@micropython.native
 def render():
     for x in range(SCREEN_WIDTH):
-        xcam = 2 * x / SCREEN_WIDTH - 1
-        dir = Vector2D(
-            s.dir.x + s.plane.x * xcam,
-            s.dir.y + s.plane.y * xcam
-        )
+        dir = calculate_camera_ray(x)
         pos = s.pos
         ipos = Vector2D(int(pos.x), int(pos.y))
-
-        # distance ray must travel from one x/y side to the next
-        delta_dist = Vector2D(
-            1e30 if abs(dir.x) < 1e-20 else abs(1 / dir.x),
-            1e30 if abs(dir.y) < 1e-20 else abs(1 / dir.y)
-        )
-
-        # distance from start to first x/y side
-        side_dist = Vector2D(
-            delta_dist.x * ((pos.x - ipos.x) if dir.x < 0 else (ipos.x + 1 - pos.x)),
-            delta_dist.y * ((pos.y - ipos.y) if dir.y < 0 else (ipos.y + 1 - pos.y))
-        )
-
-        # integer direction to step in x/y calculated overall diff
-        step = Vector2D(
-            -1 if dir.x < 0 else 1,
-            -1 if dir.y < 0 else 1
-        )
-
-        # dda hit
-        hit = Hit(0, 0, Vector2D(0, 0))
-
-        while (hit.val == 0):
-            if side_dist.x < side_dist.y:
-                side_dist.x += delta_dist.x
-                ipos.x += step.x
-                hit.side = 0
-            else:
-                side_dist.y += delta_dist.y
-                ipos.y += step.y
-                hit.side = 1
-            # assert ipos.x >= 0 and ipos.x < MAP_SIZE and ipos.y >= 0 and ipos.y < MAP_SIZE, "out of bounds"
-
-            hit.val = map_data[ipos.x + ipos.y * MAP_SIZE]
         
-        if hit.val == 0:
-            color = 0
-        elif hit.val == 1:
-            color = 1
-        elif hit.val == 2:
-            color = 2
-        else: 
-            color = 3
-
-        if hit.side == 1:
-            color = min(color + 1, 3)
-
-        hit.pos = Vector2D(
-            pos.x + side_dist.x,
-            pos.y + side_dist.y
-        )
-
+        delta_dist = calculate_delta_dist(dir)
+        side_dist = calculate_side_dist(pos, ipos, dir, delta_dist)
+        step = calculate_step(dir)
+        
+        hit = Hit(0, 0, Vector2D(0, 0))
+        hit, side_dist = perform_dda(hit, side_dist, delta_dist, ipos, step)
+        
+        color = calculate_color(hit)
+        hit.pos = Vector2D(pos.x + side_dist.x, pos.y + side_dist.y)
+        
         dperp = (side_dist.x - delta_dist.x) if hit.side == 0 else (side_dist.y - delta_dist.y)
-
-        h = int(SCREEN_HEIGHT / dperp)
-        y0 = max((SCREEN_HEIGHT / 2) - (h / 2), 0)
-        y1 = min((SCREEN_HEIGHT / 2) + (h / 2), SCREEN_HEIGHT - 1)
-
-        y0, y1 = int(y0), int(y1)
-        s.vertical_line(x, 0, y0, 0)
-        s.vertical_line(x, y0, y1, color)
-        s.vertical_line(x, y1, SCREEN_HEIGHT  - 1, 0)
+        draw_columns(x, color, dperp)
 
 # keypress handler
 def keypress():
